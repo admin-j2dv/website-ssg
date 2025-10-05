@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  # กำหนด Service ชื่อ frontend
+  frontend:
+    # ระบุให้ Build จาก Dockerfile ที่อยู่ใน Directory ปัจจุบัน (.)
+    build: .
+    # ตั้งค่า Port Mapping: ให้ Port 3000 ของเครื่อง Host เชื่อมต่อไปยัง Port 3000 ของ Container
+    ports:
+      - "3000:3000"
+    # (สำคัญ) ตั้งค่า Volumes เพื่อเชื่อมข้อมูลระหว่าง Host และ Container
+    volumes:
+      # Mount โค้ดจาก Directory ปัจจุบัน (Host) ไปยัง /app (Container)
+      # ทำให้เมื่อเราแก้โค้ดบน Host การเปลี่ยนแปลงจะสะท้อนใน Container ทันที (Hot-reloading)
+      - .:/app
+      # สร้าง Anonymous Volume สำหรับ node_modules โดยเฉพาะ
+      # เพื่อป้องกันไม่ให้โฟลเดอร์ node_modules ที่อาจมี (หรือไม่มี) บน Host
+      # ไปทับโฟลเดอร์ node_modules ที่เราติดตั้งไว้ใน Container ตอน build image
+      - /app/node_modules
