@@ -1,24 +1,33 @@
-# Phase 1: เลือก Base Image ที่เหมาะสม
-# เราเลือก node:20-alpine เพราะเป็นเวอร์ชัน LTS ที่ทันสมัยและมีขนาดเล็กมาก (alpine)
-FROM node:20-alpine
-
-# Phase 2: กำหนด Working Directory ภายใน Container
-# คำสั่งทั้งหมดหลังจากนี้จะทำงานใน path /app
+# Stage 1: Builder - เวทีสำหรับ Build โดยเฉพาะ
+FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Phase 3: Copy เฉพาะไฟล์ที่จำเป็นต่อการติดตั้ง Dependencies
-# Docker จะ cache layer นี้ไว้ ถ้าไฟล์ package*.json ไม่เปลี่ยนแปลง การ npm install จะไม่เกิดขึ้นใหม่ ทำให้ build เร็วขึ้น
+# Copy package.json และ lock file
 COPY package*.json ./
 
-# Phase 4: รัน npm install เพื่อติดตั้ง Dependencies ทั้งหมด
+# Install dependencies
 RUN npm install
 
-# Phase 5: Copy โค้ดส่วนที่เหลือทั้งหมดเข้ามาใน Image
+# Copy โค้ดที่เหลือทั้งหมด
 COPY . .
 
-# Phase 6: Expose Port 3000 เพื่อให้สามารถเข้าถึงจากภายนอก Container ได้
+# Build โปรเจกต์ (ขั้นตอนนี้จะใช้ RAM เยอะ)
+RUN npm run build
+
+# Stage 2: Runner - เวทีสำหรับใช้งานจริง (เล็กและเบา)
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+# ตั้งค่า Environment เป็น Production
+ENV NODE_ENV=production
+
+# Copy ผลลัพธ์ที่จำเป็นจาก Stage 'builder'
+# standalone output จะรวมทุกอย่างที่จำเป็นไว้ให้แล้ว
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
 EXPOSE 3000
 
-# Phase 7: กำหนดคำสั่งเริ่มต้นเมื่อ Container ถูกรัน
-# ในโหมด Development เราจะใช้คำสั่ง npm run dev
-CMD [ "npm", "run", "dev" ]
+# คำสั่งสำหรับรันเซิร์ฟเวอร์
+CMD ["node", "server.js"]
